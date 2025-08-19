@@ -9,19 +9,19 @@
     .section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; }
     label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
     input[type="file"], input[type="text"] { margin-bottom: 1rem; width: 100%; padding: 0.5rem; }
-    button { padding: 0.5rem 1rem; }
+    button { padding: 0.5rem 1rem; cursor: pointer; }
     pre { background: #f4f4f4; padding: 1rem; border-radius: 8px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-  <h1>📄 RAG App Tester</h1>
+  <h1>📂 RAG App Tester</h1>
 
   <div class="section">
-    <h2>Upload PDF</h2>
+    <h2>Upload PDFs (Single File or Entire Folder)</h2>
     <form id="uploadForm">
-      <label for="file">Select PDF:</label>
-      <input type="file" id="file" name="file" accept="application/pdf" required>
-      <button type="submit">Upload</button>
+      <label for="files">Select file(s) or folder:</label>
+      <input type="file" id="files" name="files" accept="application/pdf" multiple webkitdirectory>
+      <button type="submit">Upload All</button>
     </form>
     <pre id="uploadResult"></pre>
   </div>
@@ -37,28 +37,34 @@
   </div>
 
   <script>
-    const API_BASE = "http://localhost:8000";
+    const API_BASE = "http://127.0.0.1:8000";
 
     document.getElementById("uploadForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const formData = new FormData();
-      const fileInput = document.getElementById("file");
+      const fileInput = document.getElementById("files");
       if (fileInput.files.length === 0) {
-        alert("Please select a PDF file.");
+        alert("Please select at least one PDF file.");
         return;
       }
-      formData.append("file", fileInput.files[0]);
 
-      try {
-        const res = await fetch(`${API_BASE}/upload`, {
-          method: "POST",
-          body: formData
-        });
-        const data = await res.json();
-        document.getElementById("uploadResult").textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        document.getElementById("uploadResult").textContent = "Error: " + err;
+      let results = [];
+      for (const file of fileInput.files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const res = await fetch(`${API_BASE}/upload`, {
+            method: "POST",
+            body: formData
+          });
+          const data = await res.json();
+          results.push({ file: file.name, result: data });
+        } catch (err) {
+          results.push({ file: file.name, error: err.toString() });
+        }
       }
+
+      document.getElementById("uploadResult").textContent = JSON.stringify(results, null, 2);
     });
 
     document.getElementById("askForm").addEventListener("submit", async (e) => {
