@@ -1,0 +1,4 @@
+.venv
+.venv2
+RAGtrainAI/.env
+RAGtrainAI/chroma_db/*

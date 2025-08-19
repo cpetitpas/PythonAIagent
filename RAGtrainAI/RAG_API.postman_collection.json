@@ -1,0 +1,60 @@
+{
+  "info": {
+    "name": "RAG API",
+    "_postman_id": "a8f0d3f8-9e91-4b23-bbc2-bb7f55d4a2f7",
+    "description": "Postman collection for testing RAG upload and ask endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Upload PDF",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/upload",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["upload"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Ask Question",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "question",
+              "value": "What is this PDF about?",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/ask",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["ask"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

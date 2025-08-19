@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RAG App Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    h1 { color: #333; }
+    .section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+    input[type="file"], input[type="text"] { margin-bottom: 1rem; width: 100%; padding: 0.5rem; }
+    button { padding: 0.5rem 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 8px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>📄 RAG App Tester</h1>
+
+  <div class="section">
+    <h2>Upload PDF</h2>
+    <form id="uploadForm">
+      <label for="file">Select PDF:</label>
+      <input type="file" id="file" name="file" accept="application/pdf" required>
+      <button type="submit">Upload</button>
+    </form>
+    <pre id="uploadResult"></pre>
+  </div>
+
+  <div class="section">
+    <h2>Ask Question</h2>
+    <form id="askForm">
+      <label for="query">Your Question:</label>
+      <input type="text" id="query" name="query" placeholder="e.g. What is this document about?" required>
+      <button type="submit">Ask</button>
+    </form>
+    <pre id="askResult"></pre>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:8000";
+
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      const fileInput = document.getElementById("file");
+      if (fileInput.files.length === 0) {
+        alert("Please select a PDF file.");
+        return;
+      }
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        const res = await fetch(`${API_BASE}/upload`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        document.getElementById("uploadResult").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("uploadResult").textContent = "Error: " + err;
+      }
+    });
+
+    document.getElementById("askForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append("query", document.getElementById("query").value);
+
+      try {
+        const res = await fetch(`${API_BASE}/ask`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        document.getElementById("askResult").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("askResult").textContent = "Error: " + err;
+      }
+    });
+  </script>
+</body>
+</html>
