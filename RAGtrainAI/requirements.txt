@@ -4,3 +4,4 @@ openai
 qdrant-client
 pypdf
 python-multipart
+PYMuPDF

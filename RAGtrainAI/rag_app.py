@@ -12,10 +12,11 @@ import uuid
 # Setup
 # =========================
 app = FastAPI()
-client = OpenAI()
+openai_api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=openai_api_key)
 
 # Qdrant client
-qdrant = qdrant_client.QdrantClient("localhost", port=6333)
+qdrant = qdrant_client.QdrantClient(host="qdrant", port=6333)
 COLLECTION_NAME = "docs"
 
 # Ensure collection exists
