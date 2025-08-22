@@ -8,7 +8,7 @@
     h1 { color: #333; }
     .section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; }
     label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-    input[type="file"], input[type="text"] { margin-bottom: 1rem; width: 100%; padding: 0.5rem; }
+    input[type="file"], input[type="text"], select { margin-bottom: 1rem; width: 100%; padding: 0.5rem; }
     button { padding: 0.5rem 1rem; cursor: pointer; }
     pre { background: #f4f4f4; padding: 1rem; border-radius: 8px; white-space: pre-wrap; }
   </style>
@@ -17,9 +17,27 @@
   <h1>📂 RAG App Tester</h1>
 
   <div class="section">
-    <h2>Upload PDFs (Single File or Entire Folder)</h2>
+    <h2>Settings</h2>
+    <label for="embeddingModel">Embedding Model:</label>
+    <select id="embeddingModel">
+      <option value="text-embedding-ada-002">text-embedding-ada-002</option>
+      <option value="text-embedding-3-large">text-embedding-3-large</option>
+    </select>
+
+    <label for="answerModel">Answer Model:</label>
+    <select id="answerModel">
+      <option value="gpt-4o-mini">gpt-4o-mini</option>
+      <option value="gpt-4o">gpt-4o</option>
+    </select>
+
+    <button id="clearBtn">Clear DB</button>
+    <pre id="clearResult"></pre>
+  </div>
+
+  <div class="section">
+    <h2>Upload PDFs</h2>
     <form id="uploadForm">
-      <label for="files">Select file(s) or folder:</label>
+      <label for="files">Select file(s):</label>
       <input type="file" id="files" name="files" accept="application/pdf" multiple>
       <button type="submit">Upload All</button>
     </form>
@@ -39,6 +57,18 @@
   <script>
     const API_BASE = "http://127.0.0.1:8000";
 
+    // Clear DB
+    document.getElementById("clearBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch(`${API_BASE}/clear`, { method: "POST" });
+        const data = await res.json();
+        document.getElementById("clearResult").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("clearResult").textContent = "Error: " + err;
+      }
+    });
+
+    // Upload
     document.getElementById("uploadForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fileInput = document.getElementById("files");
@@ -47,10 +77,13 @@
         return;
       }
 
+      const embeddingModel = document.getElementById("embeddingModel").value;
       let results = [];
+
       for (const file of fileInput.files) {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("embedding_model", embeddingModel);
 
         try {
           const res = await fetch(`${API_BASE}/upload`, {
@@ -63,14 +96,17 @@
           results.push({ file: file.name, error: err.toString() });
         }
       }
-
       document.getElementById("uploadResult").textContent = JSON.stringify(results, null, 2);
     });
 
+    // Ask
     document.getElementById("askForm").addEventListener("submit", async (e) => {
       e.preventDefault();
+      const query = document.getElementById("query").value;
+      const answerModel = document.getElementById("answerModel").value;
       const formData = new FormData();
-      formData.append("query", document.getElementById("query").value);
+      formData.append("query", query);
+      formData.append("answer_model", answerModel);
 
       try {
         const res = await fetch(`${API_BASE}/ask`, {

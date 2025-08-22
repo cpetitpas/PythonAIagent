@@ -45,18 +45,20 @@ def chunk_pdf(file_path, chunk_size=500):
         text += page.get_text("text") + "\n"
     doc.close()
 
-    # Split into chunks
     words = text.split()
     chunks = []
     for i in range(0, len(words), chunk_size):
-        chunks.append(" ".join(words[i:i+chunk_size]))
+        chunks.append(" ".join(words[i:i + chunk_size]))
     return chunks
 
 # =========================
 # Endpoints
 # =========================
 @app.post("/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(
+    file: UploadFile = File(...),
+    embedding_model: str = Form("text-embedding-3-small")
+):
     save_dir = "temp"
     os.makedirs(save_dir, exist_ok=True)
 
@@ -75,10 +77,10 @@ async def upload(file: UploadFile = File(...)):
 
         # Embed + store in Qdrant
         for idx, chunk in enumerate(chunks, 1):
-            print(f"[INFO] Embedding + adding chunk {idx}/{len(chunks)}")
+            print(f"[INFO] Embedding + adding chunk {idx}/{len(chunks)} using {embedding_model}")
 
             embedding = client.embeddings.create(
-                model="text-embedding-3-small",
+                model=embedding_model,
                 input=chunk
             ).data[0].embedding
 
@@ -86,15 +88,15 @@ async def upload(file: UploadFile = File(...)):
                 collection_name=COLLECTION_NAME,
                 points=[
                     models.PointStruct(
-                        id=str(uuid.uuid4()),  # ✅ unique string ID
+                        id=str(uuid.uuid4()),
                         vector=embedding,
-                        payload={"text": chunk, "file": file.filename}
+                        payload={"text": chunk, "file": file.filename, "embedding_model": embedding_model}
                     )
                 ]
             )
 
         print(f"[INFO] Completed processing {file.filename}")
-        return {"status": "success", "chunks": len(chunks)}
+        return {"status": "success", "chunks": len(chunks), "embedding_model": embedding_model}
 
     except Exception as e:
         print(f"[ERROR] {e}")
@@ -102,11 +104,15 @@ async def upload(file: UploadFile = File(...)):
 
 
 @app.post("/ask")
-async def ask(query: str = Form(...)):
+async def ask(
+    query: str = Form(...),
+    answer_model: str = Form("gpt-4o-mini"),
+    embedding_model: str = Form("text-embedding-3-small")
+):
     try:
         # Embed query
         query_embedding = client.embeddings.create(
-            model="text-embedding-3-small",
+            model=embedding_model,
             input=query
         ).data[0].embedding
 
@@ -117,12 +123,11 @@ async def ask(query: str = Form(...)):
             limit=3
         )
 
-        # Combine retrieved text for context
         context = " ".join([r.payload["text"] for r in results])
 
         # Generate answer
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=answer_model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant using retrieved context."},
                 {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"}
@@ -130,8 +135,28 @@ async def ask(query: str = Form(...)):
         )
 
         answer = completion.choices[0].message.content
-        return {"answer": answer}  # ✅ only return the answer
+        return {
+            "answer": answer,
+            "answer_model": answer_model,
+            "embedding_model": embedding_model
+        }
 
     except Exception as e:
         print(f"[ERROR] {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/clear")
+async def clear_collection():
+    """
+    Deletes all points in the collection and recreates it.
+    """
+    try:
+        qdrant.delete_collection(COLLECTION_NAME)
+        qdrant.recreate_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE)
+        )
+        return {"status": "Collection cleared and recreated."}
+    except Exception as e:
+        return {"error": str(e)}
