@@ -7,11 +7,27 @@ from openai import OpenAI
 import qdrant_client
 from qdrant_client.http import models
 import uuid
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 # =========================
 # Setup
 # =========================
+class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, max_upload_size: int):
+        super().__init__(app)
+        self.max_upload_size = max_upload_size
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "POST":
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > self.max_upload_size:
+                return Response(content="File too large", status_code=413)
+        return await call_next(request)
+
 app = FastAPI()
+app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=500 * 1024 * 1024)  # 500 MB
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 
@@ -51,34 +67,53 @@ def chunk_pdf(file_path, chunk_size=500):
         chunks.append(" ".join(words[i:i + chunk_size]))
     return chunks
 
+def chunk_pdf_pages(file_path, chunk_size=500):
+    """Read PDF page-by-page and split text into chunks of ~chunk_size words."""
+    doc = fitz.open(file_path)
+    chunks = []
+    buffer = []
+    word_count = 0
+
+    for page in doc:
+        text = page.get_text("text")
+        words = text.split()
+        buffer.extend(words)
+        word_count += len(words)
+
+        while word_count >= chunk_size:
+            chunks.append(" ".join(buffer[:chunk_size]))
+            buffer = buffer[chunk_size:]
+            word_count = len(buffer)
+
+    if buffer:
+        chunks.append(" ".join(buffer))
+    doc.close()
+    return chunks
+
 # =========================
 # Endpoints
 # =========================
 @app.post("/upload")
-async def upload(
-    file: UploadFile = File(...),
-    embedding_model: str = Form("text-embedding-3-small")
-):
+async def upload(file: UploadFile = File(...), embedding_model: str = Form("text-embedding-3-small")):
     save_dir = "temp"
     os.makedirs(save_dir, exist_ok=True)
-
     file_path = os.path.join(save_dir, file.filename)
 
     try:
-        contents = await file.read()
+        # Stream file to disk in 1MB chunks
         with open(file_path, "wb") as f:
-            f.write(contents)
+            while chunk := await file.read(1024*1024):
+                f.write(chunk)
 
         print(f"[INFO] File saved to {file_path}")
 
-        # Chunk PDF
-        chunks = chunk_pdf(file_path)
+        # Process PDF page by page
+        chunks = chunk_pdf_pages(file_path)
         print(f"[INFO] {len(chunks)} chunks generated from {file.filename}")
 
         # Embed + store in Qdrant
         for idx, chunk in enumerate(chunks, 1):
-            print(f"[INFO] Embedding + adding chunk {idx}/{len(chunks)} using {embedding_model}")
-
+            print(f"[INFO] Embedding + adding chunk {idx}/{len(chunks)}")
             embedding = client.embeddings.create(
                 model=embedding_model,
                 input=chunk
@@ -90,13 +125,13 @@ async def upload(
                     models.PointStruct(
                         id=str(uuid.uuid4()),
                         vector=embedding,
-                        payload={"text": chunk, "file": file.filename, "embedding_model": embedding_model}
+                        payload={"text": chunk, "file": file.filename}
                     )
                 ]
             )
 
         print(f"[INFO] Completed processing {file.filename}")
-        return {"status": "success", "chunks": len(chunks), "embedding_model": embedding_model}
+        return {"status": "success", "chunks": len(chunks)}
 
     except Exception as e:
         print(f"[ERROR] {e}")
