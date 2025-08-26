@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+  body {
+    background: #0d6efd !important; /* Bootstrap primary blue */
+  }
+  .bg-light, .bg-white {
+    background: #f8f9fa !important;
+  }
+</style>
+
+<head>
+    <meta charset="utf-8">
+    <title>PAI - Your Personal AI Assistant</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="" name="keywords">
+    <meta content="" name="description">
+
+    <!-- Favicon -->
+    <link href="img/favicon.ico" rel="icon">
+
+    <!-- Google Web Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Ubuntu:wght@500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Icon Font Stylesheet -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Libraries Stylesheet -->
+    <link href="lib/animate/animate.min.css" rel="stylesheet">
+    <link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet">
+
+    <!-- Customized Bootstrap Stylesheet -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Template Stylesheet -->
+    <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Spinner Start -->
+    <div id="spinner"
+        class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
+        <div class="spinner-grow text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+    <!-- Spinner End -->
+
+    <!-- Navbar Start -->
+    <div class="container-fluid sticky-top bg-dark">
+      <div class="container">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark p-0">
+          <a href="pai.html" class="navbar-brand">
+            <h1 class="text-white mb-0">PAI - Your Personal AI Assistant<span class="text-dark"></span></h1>
+          </a>
+          <button type="button" class="navbar-toggler ms-auto me-0" data-bs-toggle="collapse"
+            data-bs-target="#navbarCollapse">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <div class="navbar-nav ms-auto">
+              <a href="index.html" class="nav-item nav-link">Home</a>
+              <a href="about.html" class="nav-item nav-link active">About</a>
+              <a href="service.html" class="nav-item nav-link">Services</a>
+              <a href="faq.html" class="nav-item nav-link">FAQ</a>
+              <a href="contact.html" class="nav-item nav-link">Contact</a>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </div>
+    <!-- Navbar End -->
+
+    
+    <!-- Upload Section -->
+    <div class="container my-5 p-4 bg-light rounded-3 shadow-lg">
+      <div class="container">
+        <h2 class="h2 fw-semibold text-dark">Upload PDFs</h2>
+        <button id="clearDbBtn" class="btn btn-danger btn-lg fw-bold">Clear DB</button>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-md-6">
+          <label class="form-label fw-medium text-dark">Embedding Model</label>
+          <select id="embeddingModel" class="form-select">
+            <option value="text-embedding-3-small">text-embedding-3-small</option>
+            <option value="text-embedding-3-large">text-embedding-3-large</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-medium text-dark">Answer Model</label>
+          <select id="answerModel" class="form-select">
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </div>
+      </div>
+
+      <form id="uploadForm" class="mb-3">
+        <br>
+        <label for="files" class="btn btn-outline-primary w-100 fw-semibold mb-2">
+          Choose PDFs
+          <input type="file" id="files" accept="application/pdf" multiple style="display:none;" />
+        </label>
+        <span id="selectedFiles" class="text-dark fw-medium mb-2"></span>
+        <script>
+          document.getElementById("files").addEventListener("change", function() {
+            const files = Array.from(this.files).map(f => f.name).join(", ");
+            document.getElementById("selectedFiles").textContent = files ? `Selected: ${files}` : "";
+          });
+        </script>
+        <button type="submit" class="btn btn-primary w-100 fw-semibold">Upload Selected</button>
+      </form>
+
+      <!-- Upload Spinner / Progress -->
+      <div id="uploadSpinner" class="d-none align-items-center gap-2 text-primary fw-semibold">
+        <div class="spinner-border text-primary me-2" role="status" style="width: 1.5rem; height: 1.5rem;">
+          <span class="visually-hidden">Uploading...</span>
+        </div>
+        <span id="uploadProgressText">Uploading...</span>
+      </div>
+      <div id="uploadResult" class="mt-2 text-dark fw-medium" style="white-space: pre-line;"></div>
+    </div>
+    <!-- Chat Section -->
+    <div class="bg-white rounded-3 shadow p-4 mb-5">
+      <h2 class="h4 fw-semibold text-dark mb-3">Chat with PAI</h2>
+      <div id="chatHistory" class="overflow-auto p-3 bg-light rounded mb-3" style="height: 24rem;">
+      <div class="d-flex justify-content-start mb-2">
+        <div class="bg-success bg-opacity-10 text-success rounded-pill px-4 py-2">
+        <strong style="color: #198754;">PAI:</strong>
+        <span style="color: #edf1f5;">Hi. I'm PAI (Personal AI), your personal AI. I'm here to help. Use the Choose Files button to select files, then click Upload Selected. Once uploaded, ask me anything about the documents.</span>
+        </div>
+      </div>
+      </div>
+
+      <form id="askForm" class="row g-2">
+      <div class="col">
+        <input type="text" id="query" placeholder="Type your question..." class="form-control"/>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-success fw-semibold">Ask</button>
+      </div>
+      </form>
+    </div>
+    </div>
+    <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    // Upload PDFs with spinner
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const files = document.getElementById("files").files;
+      const embeddingModel = document.getElementById("embeddingModel").value;
+      const uploadResult = document.getElementById("uploadResult");
+      const uploadSpinner = document.getElementById("uploadSpinner");
+      const uploadProgressText = document.getElementById("uploadProgressText");
+      uploadResult.textContent = "";
+
+      if (!files.length) {
+        alert("Please select at least one PDF.");
+        return;
+      }
+
+      uploadSpinner.classList.remove("d-none");
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("embedding_model", embeddingModel);
+
+        try {
+          uploadProgressText.textContent = `Uploading ${file.name} (${i+1}/${files.length})...`;
+          const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
+          const data = await res.json();
+          uploadResult.textContent += `Uploaded: ${file.name} (${data.chunks} chunks)\n`;
+        } catch (err) {
+          uploadResult.textContent += `Error uploading ${file.name}: ${err}\n`;
+        }
+      }
+
+      uploadSpinner.classList.add("d-none");
+    });
+
+    // Ask questions
+    document.getElementById("askForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const query = document.getElementById("query").value.trim();
+      const chatHistory = document.getElementById("chatHistory");
+      const answerModel = document.getElementById("answerModel").value;
+
+      if (!query) return;
+      // User bubble
+      const userBubble = document.createElement("div");
+      userBubble.classList.add("d-flex", "justify-content-end", "mb-2");
+      userBubble.innerHTML = `<div class="bg-primary bg-opacity-10 rounded-pill px-4 py-2" style="color: #000; background: #e7f1ff; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>You:</strong> <span>${query}</span></div>`;
+      chatHistory.appendChild(userBubble);
+
+      // Spinner for answer
+      const spinnerBubble = document.createElement("div");
+      spinnerBubble.classList.add("d-flex", "justify-content-start", "mb-2");
+      spinnerBubble.innerHTML = `<div class="bg-success bg-opacity-10 rounded-pill px-4 py-2 d-flex align-items-center gap-2" style="color: #000; background: #e9fbe7; border-radius: 1rem; max-width: 80%;"><span class="spinner-border spinner-border-sm text-success me-2" role="status" aria-hidden="true"></span> Thinking...</div>`;
+      chatHistory.appendChild(spinnerBubble);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+      // Ask API
+      const formData = new FormData();
+      formData.append("query", query);
+      formData.append("answer_model", answerModel);
+
+      try {
+      const res = await fetch(`${API_BASE}/ask`, { method: "POST", body: formData });
+      const data = await res.json();
+      spinnerBubble.remove();
+
+      const paiBubble = document.createElement("div");
+      paiBubble.classList.add("d-flex", "justify-content-start", "mb-2");
+      paiBubble.innerHTML = `<div class="bg-success bg-opacity-10 rounded-pill px-4 py-2" style="color: #000; background: #e9fbe7; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>PAI:</strong> <span>${data.answer}</span></div>`;
+      chatHistory.appendChild(paiBubble);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+      } catch (err) {
+      spinnerBubble.remove();
+      const errBubble = document.createElement("div");
+      errBubble.classList.add("d-flex", "justify-content-start", "mb-2");
+      errBubble.innerHTML = `<div class="bg-danger bg-opacity-10 rounded-pill px-4 py-2" style="color: #000; background: #fbe7e7; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>Error:</strong> <span>${err}</span></div>`;
+      chatHistory.appendChild(errBubble);
+      }
+      document.getElementById("query").value = "";
+      document.getElementById("query").focus();
+    });
+
+    // Clear DB
+    document.getElementById("clearDbBtn").addEventListener("click", async () => {
+      if (!confirm("Are you sure you want to clear the database?")) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/clear`, { method: "POST" });
+        const data = await res.json();
+        alert(data.status || data.error);
+      } catch (err) {
+        alert("Error: " + err);
+      }
+    });
+  </script>
+
+  <!-- Footer Start -->
+    <div class="container-fluid bg-dark text-white-50 footer pt-5">
+        <div class="container py-5">
+            <div class="row g-5">
+                <div class="col-md-6 col-lg-3 wow fadeIn" data-wow-delay="0.1s">
+                    <a href="index.html" class="d-inline-block mb-3">
+                        <h1 class="text-white">PAI - Your Personal AI Assistant<span class="text-dark"></span></h1>
+                    </a>
+                </div>
+                <div class="col-md-6 col-lg-3 wow fadeIn" data-wow-delay="0.3s">
+                    <h5 class="text-white mb-4">Get In Touch</h5>
+                    <p><i class="fa fa-phone-alt me-3"></i>1-720-937-4207</p>
+                    <p><i class="fa fa-envelope me-3"></i>chris070411@gmail.com</p>
+                </div>
+                <div class="col-md-6 col-lg-3 wow fadeIn" data-wow-delay="0.5s">
+                    <h5 class="text-white mb-4">Popular Link</h5>
+                    <a class="btn btn-link" href="">About Us</a>
+                    <a class="btn btn-link" href="">Contact Us</a>
+                    <a class="btn btn-link" href="">Privacy Policy</a>
+                    <a class="btn btn-link" href="">Terms & Condition</a>
+                </div>
+            </div>
+        </div>
+        <div class="container wow fadeIn" data-wow-delay="0.1s">
+            <div class="copyright">
+                <div class="row">
+                    <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                        &copy; <a class="border-bottom" href="#">PAI - Your Personal AI Assistant</a>, All Right Reserved.
+
+                        <!--/*** This template is free as long as you keep the footer author’s credit link/attribution link/backlink. If you'd like to use the template without the footer author’s credit link/attribution link/backlink, you can purchase the Credit Removal License from "https://htmlcodex.com/credit-removal". Thank you for your support. ***/-->
+                        Designed By <a class="border-bottom" href="https://htmlcodex.com">HTML Codex</a> Distributed By <a class="border-bottom" href="https://themewagon.com">ThemeWagon</a>
+                    </div>
+                    <div class="col-md-6 text-center text-md-end">
+                        <div class="footer-menu">
+                            <a href="">Home</a>
+                            <a href="">Cookies</a>
+                            <a href="">Help</a>
+                            <a href="">FAQs</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Footer End -->
+
+
+    <!-- Back to Top -->
+    <a href="#" class="btn btn-lg btn-primary btn-lg-square back-to-top pt-2"><i class="bi bi-arrow-up"></i></a>
+
+
+    <!-- JavaScript Libraries -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="lib/wow/wow.min.js"></script>
+    <script src="lib/easing/easing.min.js"></script>
+    <script src="lib/waypoints/waypoints.min.js"></script>
+    <script src="lib/counterup/counterup.min.js"></script>
+    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
+
+    <!-- Template Javascript -->
+    <script src="js/main.js"></script>
+</body>
+</html>
