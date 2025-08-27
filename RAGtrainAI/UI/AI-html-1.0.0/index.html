@@ -153,9 +153,36 @@
                             <h2 class="accordion-header" id="headingOne">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                     data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                                    How Do I Use My Personal AI?
+                                    How do I use PAI?
                                 </button>
                             </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionFAQ1">
+                                <div class="accordion-body">
+                                    <ul>
+                                        <li>PAI leverages advanced AI models to understand your questions.</li>
+                                        <li>PAI searches through a local database built on your machine from PDF files that you upload to answer your questions your Social Security, Healthcare records, and much more.</li>
+                                        <li>PAI runs on your local machine, ensuring data privacy and security. At no time is your personal information uploaded to external servers.</li>
+                                        <li>When you stop PAI, your local database is NOT kept. When you start PAI again, you will have to reload your PDF files. This further protects your personal/sensitive information.</li>
+                                        <li>PAI is designed to be user-friendly, with a simple interface that makes it easy to ask questions and get answers quickly.</li>
+                                        <li>To Use PAI:
+                                            <ul>
+                                                <li>You will need an OpenAI API key. Follow these steps to get started:</li>
+                                                <ul>
+                                                    <li>Sign up for an account on the OpenAI website (<a href="https://www.openai.com/" target="_blank">https://www.openai.com/</a>).</li>
+                                                    <li>Create a new API key in your account settings.</li>
+                                                    <li>Copy the API key and paste it into the PAI configuration file (.env) on your local machine.</li>
+                                                    <li>Purchase credits from OpenAI to use the API. Only $5 worth will get you started. PAI allows you to choose the Embedding Model and the Answer Model that best fits your needs.</li>
+                                                </ul>
+                                                <li>Start the PAI application.</li>
+                                                <li>Select Choose Files and select the PDF files you want to upload.</li>
+                                                <li>Click Upload Selected to load the files into your local database. Select Clear My Info to clear your uploaded files and start fresh.</li>
+                                                <li>Once the files are uploaded, you can ask questions in the "Chat with PAI" section.</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
