@@ -200,13 +200,13 @@
       // User bubble
       const userBubble = document.createElement("div");
       userBubble.classList.add("d-flex", "justify-content-end", "mb-2");
-      userBubble.innerHTML = `<div class="bg-primary bg-opacity-10 rounded-pill px-4 py-2" style="color: #000; background: #e7f1ff; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>You:</strong> <span>${query}</span></div>`;
+      userBubble.innerHTML = `<div class="bg-primary bg-opacity-10 rounded-pill px-4 py-2" style="color: #fff; background: #0d6efd; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>You:</strong> <span>${query}</span></div>`;
       chatHistory.appendChild(userBubble);
 
       // Spinner for answer
       const spinnerBubble = document.createElement("div");
       spinnerBubble.classList.add("d-flex", "justify-content-start", "mb-2");
-      spinnerBubble.innerHTML = `<div class="bg-success bg-opacity-10 rounded-pill px-4 py-2 d-flex align-items-center gap-2" style="color: #000; background: #e9fbe7; border-radius: 1rem; max-width: 80%;"><span class="spinner-border spinner-border-sm text-success me-2" role="status" aria-hidden="true"></span> Thinking...</div>`;
+      spinnerBubble.innerHTML = `<div class="bg-success bg-opacity-10 rounded-pill px-4 py-2 d-flex align-items-center gap-2" style="color: #fff; background: #198754; border-radius: 1rem; max-width: 80%;"><span class="spinner-border spinner-border-sm text-light me-2" role="status" aria-hidden="true"></span> Thinking...</div>`;
       chatHistory.appendChild(spinnerBubble);
       chatHistory.scrollTop = chatHistory.scrollHeight;
       // Ask API
@@ -221,14 +221,14 @@
 
       const paiBubble = document.createElement("div");
       paiBubble.classList.add("d-flex", "justify-content-start", "mb-2");
-      paiBubble.innerHTML = `<div class="bg-success bg-opacity-10 rounded-pill px-4 py-2" style="color: #000; background: #e9fbe7; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>PAI:</strong> <span>${data.answer}</span></div>`;
+      paiBubble.innerHTML = `<div class="bg-success bg-opacity-10 rounded-pill px-4 py-2" style="color: #fff; background: #198754; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>PAI:</strong> <span>${data.answer}</span></div>`;
       chatHistory.appendChild(paiBubble);
       chatHistory.scrollTop = chatHistory.scrollHeight;
       } catch (err) {
       spinnerBubble.remove();
       const errBubble = document.createElement("div");
       errBubble.classList.add("d-flex", "justify-content-start", "mb-2");
-      errBubble.innerHTML = `<div class="bg-danger bg-opacity-10 rounded-pill px-4 py-2" style="color: #000; background: #fbe7e7; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>Error:</strong> <span>${err}</span></div>`;
+      errBubble.innerHTML = `<div class="bg-danger bg-opacity-10 rounded-pill px-4 py-2" style="color: #fff; background: #dc3545; border-radius: 1rem; max-width: 80%; word-break: break-word;"><strong>Error:</strong> <span>${err}</span></div>`;
       chatHistory.appendChild(errBubble);
       }
       document.getElementById("query").value = "";
