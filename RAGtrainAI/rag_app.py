@@ -145,31 +145,56 @@ async def ask(
     embedding_model: str = Form("text-embedding-3-small")
 ):
     try:
-        # Embed query
+        # 1️⃣ Embed the query
         query_embedding = client.embeddings.create(
             model=embedding_model,
             input=query
         ).data[0].embedding
 
-        # Search Qdrant
+        # 2️⃣ Search Qdrant
         results = qdrant.search(
             collection_name=COLLECTION_NAME,
             query_vector=query_embedding,
             limit=3
         )
 
+        # 3️⃣ If no results, return strict response
+        if not results or len(results) == 0:
+            return {
+                "answer": "No relevant information found in your documents. Did you upload the correct file?",
+                "answer_model": answer_model,
+                "embedding_model": embedding_model
+            }
+
+        # 4️⃣ Combine retrieved text
         context = " ".join([r.payload["text"] for r in results])
 
-        # Generate answer
+        if not context.strip():
+            return {
+                "answer": "No relevant information found in your documents.",
+                "answer_model": answer_model,
+                "embedding_model": embedding_model
+            }
+
+        # 5️⃣ Strict system prompt to prevent hallucination
+        system_prompt = (
+            "You are PAI, a helpful assistant. "
+            "You must only answer using the provided context. "
+            "If the answer is not in the context, say: "
+            "'I don’t know. Please upload a document that contains this information or try a different answer model. Did you type names correctly?'"
+        )
+
+        # 6️⃣ Generate answer using only context
         completion = client.chat.completions.create(
             model=answer_model,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant using retrieved context."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"}
             ]
         )
 
-        answer = completion.choices[0].message.content
+        answer = completion.choices[0].message.content.strip()
+
         return {
             "answer": answer,
             "answer_model": answer_model,
@@ -179,6 +204,7 @@ async def ask(
     except Exception as e:
         print(f"[ERROR] {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 
 @app.post("/clear")
