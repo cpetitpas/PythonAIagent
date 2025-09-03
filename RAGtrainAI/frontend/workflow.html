@@ -71,25 +71,41 @@
     <h1 class="text-center mb-4 fw-bold text-dark">Welcome to PAI</h1>
     <p class="text-center text-dark">This guided workflow will help you set up PAI by walking through a few simple steps.</p>
 
-    <!-- Step 1 -->
+    <!-- Step 1: OpenAI Setup -->
     <div id="step1" class="step-card bg-white rounded shadow p-4 mb-4">
       <div class="step-number">Step 1</div>
-      <h3 class="text-dark">Get Started</h3>
-      <p class="text-dark">We’ll begin by choosing where your PDFs are located.</p>
-      <div class="d-flex gap-2">
+      <h3 class="text-dark">Create an OpenAI Account & API Key</h3>
+      <p class="text-dark text-center">
+        To use PAI, you’ll need an OpenAI account and an API key.
+      </p>
+      <ol class="text-dark text-start">
+        <li>Go to <a href="https://platform.openai.com/signup" target="_blank">OpenAI Signup</a> and create an account (or log in).</li>
+        <li>Once logged in, click your profile picture (gear in the upper right) → <strong>View API Keys</strong>.</li>
+        <li>Click <strong>Create new secret key</strong> and copy the key value.</li>
+        <li>Paste the key into a file called <code>.env</code> in the folder: <code>C:\Program Files\PAI</code> using <code>Save As</code> in Notepad. Notepad can be found in the Start menu.</li>
+        <li>Go back to OpenAI and click on your profile picture again, select <code>Billing</code> and buy some credit balance. $5 is plenty to start as the OpenAI API can be quite cost-effective for small projects.</li>
+      </ol>
+      <div class="alert alert-info w-100 mt-2">
+        ⚠️ Keep your API key secret. Do not share it with anyone.
+      </div>
+      <div class="d-flex gap-2 mt-3">
         <button class="btn btn-primary fw-semibold" onclick="nextStep(1)">Next</button>
       </div>
     </div>
 
-    <!-- Step 2 -->
+    <!-- Step 2: Locate PDFs -->
     <div id="step2" class="step-card bg-white rounded shadow p-4 mb-4 hidden">
       <div class="step-number">Step 2</div>
       <h3 class="text-dark">Locate and Select PDFs</h3>
       <p class="text-dark">You can either search a folder or select PDFs directly. PDF files found in the selected folder will be listed below.</p>
       <div class="alert alert-warning py-2 px-3 mb-2">
         <strong>Note:</strong> Files downloaded from Social Security or Healthcare providers are usually in "Downloads".
+        If you are starting over, use the "Clear My Info" button below to reset your data.
       </div>
-
+      <div>
+        <button id="clearDbBtn" class="btn btn-danger btn-lg fw-bold">Clear My Info</button>
+      </div>
+      <br />
       <label class="btn btn-outline-primary w-100 fw-semibold mb-2">
         Choose a Folder
         <input type="file" id="folderInput" webkitdirectory directory style="display:none;" />
@@ -99,7 +115,7 @@
         <input type="file" id="files" accept="application/pdf" multiple style="display:none;" />
       </label>
 
-      <small class="text-muted">💡 After selecting a folder or files, you can tick individual files below.</small>
+      <small class="text-muted">💡 Select one or more files to be uploaded.</small>
 
       <div class="d-flex justify-content-between mt-2">
         <button id="toggleSelectBtn" class="btn btn-sm btn-outline-secondary">Select All</button>
@@ -113,7 +129,7 @@
       </div>
     </div>
 
-    <!-- Step 3 -->
+    <!-- Step 3: Upload PDFs -->
     <div id="step3" class="step-card bg-white rounded shadow p-4 mb-4 hidden">
       <div class="step-number">Step 3</div>
       <h3 class="text-dark">Upload Selected PDFs</h3>
@@ -143,7 +159,7 @@
       </div>
     </div>
 
-    <!-- Step 4 / Chat -->
+    <!-- Step 4: Chat -->
     <div id="step4" class="step-card bg-white rounded shadow p-4 mb-4 hidden">
       <div class="step-number">Step 4</div>
       <h3 class="text-dark">Ask Questions</h3>
@@ -353,7 +369,20 @@ document.getElementById("askForm").addEventListener("submit", async (e)=>{
     chatHistory.appendChild(errBubble);
   }
 
-  document.getElementById("query").value="";
+document.getElementById("query").value="";
+});
+
+// Clear DB
+document.getElementById("clearDbBtn").addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to clear the database?")) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/clear`, { method: "POST" });
+    const data = await res.json();
+    alert(data.status || data.error);
+  } catch (err) {
+    alert("Error: " + err);
+  }
 });
 </script>
 <!-- Footer Start -->
