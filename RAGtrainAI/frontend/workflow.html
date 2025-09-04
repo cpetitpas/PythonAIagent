@@ -81,8 +81,18 @@
       <ol class="text-dark text-start">
         <li>Go to <a href="https://platform.openai.com/signup" target="_blank">OpenAI Signup</a> and create an account (or log in).</li>
         <li>Once logged in, click your profile picture (gear in the upper right) → <strong>View API Keys</strong>.</li>
-        <li>Click <strong>Create new secret key</strong> and copy the key value.</li>
-        <li>Paste the key into a file called <code>.env</code> in the folder: <code>C:\Program Files\PAI</code> using <code>Save As</code> in Notepad. Notepad can be found in the Start menu.</li>
+        <li>Click <strong>Create new secret key</strong> (give the key a name) and copy the key value. OpenAI provides a <code>Copy</code> key.</li>
+        <li>
+          Add this value as a new system environment variable called <code>OPENAI_API_KEY</code> by typing <code>env</code> into the Start Bar search.<br>
+          <img src="img/envVarSearch.png" alt="Windows Environment Variable Screenshot" class="img-fluid rounded border mt-2" style="max-width:400px;">
+        </li>
+        <li>Click <code>Edit the system environment variables</code> → <code>Environment Variables</code> button → <code>New</code> under System variables.<br>
+          <img src="img/envVarButton.png" alt="Windows Environment Variable Screenshot" class="img-fluid rounded border mt-2" style="max-width:400px;">
+          <img src="img/envVarList.png" alt="Windows Environment Variable Screenshot" class="img-fluid rounded border mt-2" style="max-width:400px;">
+        </li>
+        <li>Enter <code>OPENAI_API_KEY</code> as the variable name and paste your API key as the value.<br>
+          <img src="img/newSystemEnvVar.png" alt="Windows Environment Variable Screenshot" class="img-fluid rounded border mt-2" style="max-width:400px;">
+        </li>
         <li>Go back to OpenAI and click on your profile picture again, select <code>Billing</code> and buy some credit balance. $5 is plenty to start as the OpenAI API can be quite cost-effective for small projects.</li>
       </ol>
       <div class="alert alert-info w-100 mt-2">
