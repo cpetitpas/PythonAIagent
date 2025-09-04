@@ -7,6 +7,7 @@ from openai import OpenAI
 import qdrant_client
 from qdrant_client.http import models
 import uuid
+import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -25,6 +26,12 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
             if content_length and int(content_length) > self.max_upload_size:
                 return Response(content="File too large", status_code=413)
         return await call_next(request)
+# Configure logging
+logging.basicConfig(
+    filename="pai_backend.log",
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 app = FastAPI()
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=500 * 1024 * 1024)  # 500 MB
@@ -100,6 +107,7 @@ async def upload(file: UploadFile = File(...), embedding_model: str = Form("text
     file_path = os.path.join(save_dir, file.filename)
 
     try:
+        logging.info(f"Received upload request: {file.filename}, model={embedding_model}")
         # Stream file to disk in 1MB chunks
         with open(file_path, "wb") as f:
             while chunk := await file.read(1024*1024):
@@ -131,10 +139,12 @@ async def upload(file: UploadFile = File(...), embedding_model: str = Form("text
             )
 
         print(f"[INFO] Completed processing {file.filename}")
+        logging.info(f"File {file.filename} processed with {len(chunks)} chunks with status: success using {embedding_model}")
         return {"status": "success", "chunks": len(chunks)}
 
     except Exception as e:
         print(f"[ERROR] {e}")
+        logging.error(f"Error uploading {file.filename}: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -145,6 +155,7 @@ async def ask(
     embedding_model: str = Form("text-embedding-3-small")
 ):
     try:
+        logging.info(f"Received query: {query} (model={answer_model})")
         # 1️⃣ Embed the query
         query_embedding = client.embeddings.create(
             model=embedding_model,
@@ -194,6 +205,7 @@ async def ask(
         )
 
         answer = completion.choices[0].message.content.strip()
+        logging.info(f"Generated answer for query '{query}': {answer[:100]}...")
 
         return {
             "answer": answer,
@@ -203,6 +215,7 @@ async def ask(
 
     except Exception as e:
         print(f"[ERROR] {e}")
+        logging.error(f"Error processing query '{query}': {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -220,4 +233,13 @@ async def clear_collection():
         )
         return {"status": "Collection cleared and recreated."}
     except Exception as e:
+        logging.error(f"Error clearing collection: {str(e)}")
         return {"error": str(e)}
+    
+@app.get("/logs")
+async def get_logs():
+    try:
+        with open("pai_backend.log", "r") as f:
+            return {"logs": f.read()}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

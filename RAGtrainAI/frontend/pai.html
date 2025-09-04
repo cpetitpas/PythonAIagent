@@ -83,7 +83,7 @@
         <button id="clearDbBtn" class="btn btn-danger btn-lg fw-bold">Clear My Info</button>
       </div>
       <div class="service-item bg-white text-center rounded p-4">
-        <a class="btn btn-outline-primary rounded-pill px-4" href="readMore.html">Getting Started with PAI</a>
+        <a class="btn btn-outline-primary rounded-pill px-4" href="readMore.html">READ: Getting Started with PAI</a>
       </div>
       <div class="row g-4">
         <div class="col-md-6">
@@ -153,6 +153,17 @@
         <button type="submit" class="btn btn-success fw-semibold">Ask</button>
       </div>
       </form>
+      <div class="d-flex flex-column align-items-center justify-content-center mt-3">
+        <p class="text-muted">
+          💡 If you run into issues, you can send us your log file. Logs are used <strong>only for troubleshooting</strong> and to improve PAI.<br>
+          Once reviewed, your logs will be <strong>permanently destroyed</strong>. If the <code>Send Log via Email</code> doesn't work, you can use <code>Download Log</code> and email the file to <a href="mailto:chris070411@gmail.com">chris070411@gmail.com</a><br>
+          The file will be called <code>pai_log.txt</code> and will usually be in the <code>Downloads</code> folder.
+        </p>
+        <div class="d-flex gap-2 mt-3 justify-content-center">
+          <button class="btn btn-outline-secondary fw-semibold" onclick="downloadLog()">Download Log</button>
+          <button class="btn btn-outline-primary fw-semibold" onclick="sendLogEmail()">Send Log via Email</button>
+        </div>
+      </div>
     </div>
     </div>
     <script>
@@ -252,6 +263,51 @@
         alert("Error: " + err);
       }
     });
+
+    let logs = [];
+
+function logEvent(message) {
+  const timestamp = new Date().toISOString();
+  const entry = `[${timestamp}] ${message}`;
+  logs.push(entry);
+  console.log(entry);
+}
+
+// Download log as file
+async function downloadLog() {
+  try {
+    const res = await fetch(`${API_BASE}/logs`);
+    const data = await res.json();
+
+    const blob = new Blob([data.logs || "No logs found"], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pai_log.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Error fetching logs: " + err);
+  }
+}
+
+// Send log via email
+async function sendLogEmail() {
+  try {
+    const res = await fetch(`${API_BASE}/logs`);
+    const data = await res.json();
+
+    const subject = encodeURIComponent("PAI Troubleshooting Log");
+    const body = encodeURIComponent(
+      "Hello Chris,\n\nHere is my troubleshooting log for PAI:\n\n" +
+      (data.logs || "No logs available") +
+      "\n\nThanks!"
+    );
+    window.location.href = `mailto:chris070411@gmail.com?subject=${subject}&body=${body}`;
+  } catch (err) {
+    alert("Error preparing email: " + err);
+  }
+}
   </script>
 
   <!-- Footer Start -->
