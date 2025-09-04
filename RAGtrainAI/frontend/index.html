@@ -4,6 +4,35 @@
 <head>
     <meta charset="utf-8">
     <title>PAI - Social Security/Healthcare Personal AI Assistant</title>
+    <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+            #disclaimerModal {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background-color: rgba(0,0,0,0.6);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+            #modalContent {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                width: 400px;
+                text-align: left;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            }
+            button {
+                margin-top: 15px;
+                padding: 8px 16px;
+                border: none;
+                background-color: #007bff;
+                color: white;
+                border-radius: 6px;
+                cursor: pointer;
+            }
+        </style>
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <meta content="" name="keywords">
     <meta content="" name="description">
@@ -33,6 +62,19 @@
 </head>
 
 <body>
+    <div id="disclaimerModal">
+            <div id="modalContent">
+                <h3>Disclaimer</h3>
+                <p>
+                    This software is for <b>informational purposes only</b>.<br><br>
+                    - It does NOT provide medical advice, diagnosis, or treatment.<br>
+                    - It does NOT provide legal advice about Medicare, Medicaid, disability, or other benefits.<br>
+                    - Always consult a qualified professional before making decisions.<br>
+                    - All processing happens locally on your computer. No data is sent to us.
+                </p>
+                <button onclick="acceptDisclaimer()">I Understand</button>
+            </div>
+    </div>
     <!-- Spinner Start -->
     <div id="spinner"
         class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
@@ -112,6 +154,11 @@
             </div>
         </div>
     </div>
+    <script>
+            function acceptDisclaimer() {
+                document.getElementById("disclaimerModal").style.display = "none";
+            }
+    </script>
     <!-- Hero End -->
 
     <!-- Footer Start -->
