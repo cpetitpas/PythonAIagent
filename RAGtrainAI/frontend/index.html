@@ -155,9 +155,16 @@
         </div>
     </div>
     <script>
-            function acceptDisclaimer() {
+        function acceptDisclaimer() {
+            localStorage.setItem("paiDisclaimerAccepted", "true");
+            window.location.href = "terms.html";
+        }
+
+        window.onload = function() {
+            if (localStorage.getItem("paiDisclaimerAccepted") === "true") {
                 document.getElementById("disclaimerModal").style.display = "none";
             }
+        }
     </script>
     <!-- Hero End -->
 
