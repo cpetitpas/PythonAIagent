@@ -3,6 +3,7 @@ import fitz  # PyMuPDF for PDF reading
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 import qdrant_client
 from qdrant_client.http import models
@@ -35,11 +36,12 @@ logging.basicConfig(
 
 app = FastAPI()
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=500 * 1024 * 1024)  # 500 MB
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 
-# Qdrant client
-qdrant = qdrant_client.QdrantClient(host="qdrant", port=6333)
+# Qdrant client (embedded mode)
+qdrant = qdrant_client.QdrantClient(path="qdrant_storage")
 COLLECTION_NAME = "docs"
 
 # Ensure collection exists
