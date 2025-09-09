@@ -9,6 +9,7 @@ import qdrant_client
 from qdrant_client.http import models
 import uuid
 import logging
+import sys
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -36,7 +37,13 @@ logging.basicConfig(
 
 app = FastAPI()
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=500 * 1024 * 1024)  # 500 MB
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+if getattr(sys, 'frozen', False):  # running in PyInstaller bundle
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+frontend_path = os.path.join(BASE_DIR, "frontend")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 
@@ -245,3 +252,7 @@ async def get_logs():
             return {"logs": f.read()}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)

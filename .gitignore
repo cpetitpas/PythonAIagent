@@ -3,3 +3,5 @@ RAGtrainAI/.venv/*
 RAGtrainAI/.env
 RAGtrainAI/chroma_db/*
 RAGtrainAI/temp/*
+RAGtrainAI/dist/*
+RAGtrainAI/build/*
