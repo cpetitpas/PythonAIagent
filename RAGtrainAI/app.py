@@ -32,18 +32,30 @@ QDRANT_DOWNLOAD = "https://github.com/qdrant/qdrant/releases/download/v1.15.4/qd
 # =========================
 # Qdrant management
 # =========================
-def ensure_qdrant():
+def ensure_qdrant(window=None):
     """Download and extract Qdrant.exe if not already present."""
     if QDRANT_EXE.exists():
+        if window:
+            window.evaluate_js("document.getElementById('status').innerText = 'Qdrant already installed.';")
         return
 
-    print("[INFO] Qdrant not found, downloading...")
-    QDRANT_DIR.mkdir(parents=True, exist_ok=True)
+    if window:
+        window.evaluate_js("document.getElementById('status').innerText = 'Qdrant not found, downloading...';")
 
+    QDRANT_DIR.mkdir(parents=True, exist_ok=True)
     tmp_zip = Path(tempfile.gettempdir()) / "qdrant.zip"
 
     import urllib.request
-    urllib.request.urlretrieve(QDRANT_DOWNLOAD, tmp_zip)
+
+    def reporthook(blocknum, blocksize, totalsize):
+        if window:
+            percent = int(blocknum * blocksize * 100 / totalsize)
+            window.evaluate_js(f"document.getElementById('status').innerText = 'Downloading Qdrant... {percent}%';")
+
+    urllib.request.urlretrieve(QDRANT_DOWNLOAD, tmp_zip, reporthook)
+
+    if window:
+        window.evaluate_js("document.getElementById('status').innerText = 'Extracting Qdrant...';")
 
     with zipfile.ZipFile(tmp_zip, "r") as zip_ref:
         for member in zip_ref.namelist():
@@ -53,12 +65,16 @@ def ensure_qdrant():
                 extracted_path.rename(QDRANT_EXE)
                 break
 
-    print(f"[INFO] Qdrant installed at {QDRANT_EXE}")
+    if window:
+        window.evaluate_js("document.getElementById('status').innerText = 'Qdrant installed successfully.';")
 
-def start_qdrant():
+def start_qdrant(window=None):
     """Start Qdrant server."""
     global qdrant_process
-    ensure_qdrant()
+    ensure_qdrant(window)
+
+    if window:
+        window.evaluate_js("document.getElementById('status').innerText = 'Starting Qdrant...';")
 
     qdrant_process = subprocess.Popen(
         [str(QDRANT_EXE)],
@@ -67,12 +83,12 @@ def start_qdrant():
         creationflags=subprocess.CREATE_NO_WINDOW
     )
 
-    # Wait for Qdrant to be ready
     start_time = time.time()
     while True:
         try:
             requests.get(QDRANT_URL)
-            print("[INFO] Qdrant is ready")
+            if window:
+                window.evaluate_js("document.getElementById('status').innerText = 'Qdrant is ready.';")
             return
         except Exception:
             if time.time() - start_time > 20:
@@ -172,11 +188,10 @@ class API:
 
             msg = EmailMessage()
             msg['Subject'] = "PAI Troubleshooting Log"
-            msg['From'] = "paiassistant@example.com"  # replace with your sender
+            msg['From'] = "paiassistant@example.com"
             msg['To'] = recipient
             msg.set_content(f"Hello Chris,\n\nHere is my troubleshooting log for PAI:\n\n{log_text}\n\nThanks!")
 
-            # Example using localhost SMTP. You can replace with real server.
             with smtplib.SMTP('localhost') as s:
                 s.send_message(msg)
 
@@ -200,6 +215,10 @@ def gui():
 
     api = API()
     window = webview.create_window("PAI Assistant", html=html, width=500, height=200, js_api=api)
+
+    # Start Qdrant in a separate thread so GUI is responsive
+    threading.Thread(target=lambda: start_qdrant(window), daemon=True).start()
+    threading.Thread(target=start_backend, daemon=True).start()
 
     def update_loop():
         if wait_for_backend():
@@ -232,6 +251,4 @@ atexit.register(kill_qdrant)
 # =========================
 # Launch stack
 # =========================
-start_qdrant()
-start_backend()
 gui()

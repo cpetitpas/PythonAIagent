@@ -196,11 +196,13 @@ async def ask(
         ).data[0].embedding
 
         # 2️⃣ Search Qdrant
-        results = qdrant.search(
+        response = qdrant.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=3
         )
+
+        results = response.points  
 
         # 3️⃣ If no results, return strict response
         if not results or len(results) == 0:
@@ -211,7 +213,7 @@ async def ask(
             }
 
         # 4️⃣ Combine retrieved text
-        context = " ".join([r.payload["text"] for r in results])
+        context = " ".join([r.payload["text"] for r in results])    
 
         if not context.strip():
             return {
