@@ -13,6 +13,7 @@ UninstallDisplayIcon={app}\app.exe
 [Files]
 ; Compiled app + backend
 Source: "dist\*"; DestDir: "{app}"; Flags: recursesubdirs
+Source: "pai.ico"; DestDir: "{app}"
 
 [Dirs]
 ; Pre-create folders for logs and Qdrant cache
@@ -21,8 +22,8 @@ Name: "{localappdata}\paiassistant\qdrant"
 
 [Icons]
 ; Desktop + Start Menu shortcuts
-Name: "{userdesktop}\PAI Personal Assistant"; Filename: "{app}\app.exe"
-Name: "{group}\PAI Personal Assistant"; Filename: "{app}\app.exe"
+Name: "{userdesktop}\PAI Personal Assistant"; Filename: "{app}\app.exe"; IconFilename: "{app}\pai.ico"
+Name: "{group}\PAI Personal Assistant"; Filename: "{app}\app.exe"; IconFilename: "{app}\pai.ico"
 
 [UninstallDelete]
 ; Clean up cache/logs on uninstall
