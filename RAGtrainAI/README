@@ -1,4 +1,4 @@
 Packaging:
 
-1. pyinstaller --onefile --add-data "frontend;frontend" --add-data "qdrant_storage;qdrant_storage" main.py -n pai_backend.exe
+1. pyinstaller --onefile --add-data "frontend;frontend" --add-data "qdrant_storage;qdrant_storage" --windowed main.py -n pai_backend.exe
 2. pyinstaller --noconsole --onefile app.py

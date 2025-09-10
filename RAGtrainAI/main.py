@@ -1,17 +1,17 @@
 import os
-import fitz  # PyMuPDF for PDF reading
-from fastapi import FastAPI, UploadFile, File, Form
+import fitz
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 import qdrant_client
 from qdrant_client.http import models
 import uuid
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 from starlette.responses import Response
 
 # =========================
@@ -28,43 +28,70 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
             if content_length and int(content_length) > self.max_upload_size:
                 return Response(content="File too large", status_code=413)
         return await call_next(request)
-# Configure logging
-logging.basicConfig(
-    filename="pai_backend.log",
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
+
+# =========================
+# Logging Setup
+# =========================
+if sys.platform == "win32":
+    base_dir = os.path.join(os.getenv("LOCALAPPDATA"), "paiassistant")
+else:
+    base_dir = os.path.expanduser("~/.paiassistant")  # fallback for Linux/Mac
+
+log_dir = os.path.join(base_dir, "logs")
+os.makedirs(log_dir, exist_ok=True)
+
+LOG_FILE = os.path.join(log_dir, "pai_log.txt")
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+handler.setFormatter(formatter)
+
+if not logger.handlers:
+    logger.addHandler(handler)
 
 app = FastAPI()
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=500 * 1024 * 1024)  # 500 MB
-if getattr(sys, 'frozen', False):  # running in PyInstaller bundle
-    BASE_DIR = sys._MEIPASS
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-frontend_path = os.path.join(BASE_DIR, "frontend")
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 
-# Qdrant client (embedded mode)
-qdrant = qdrant_client.QdrantClient(path="qdrant_storage")
+# ✅ Qdrant server mode instead of embedded mode
+QDRANT_URL = "http://127.0.0.1:6333"
+qdrant = qdrant_client.QdrantClient(url=QDRANT_URL)
+
 COLLECTION_NAME = "docs"
 
 # Ensure collection exists
-qdrant.recreate_collection(
-    collection_name=COLLECTION_NAME,
-    vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE)
-)
+try:
+    qdrant.recreate_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE)
+    )
+except Exception as e:
+    logging.error(f"Error initializing Qdrant: {e}")
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # restrict to frontend domain if needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# =========================
+# Shutdown hook
+# =========================
+@app.on_event("shutdown")
+def shutdown_event():
+    try:
+        qdrant.close()
+        logger.info("Qdrant client closed cleanly.")
+    except Exception as e:
+        logging.error(f"Error while closing Qdrant: {e}")
 
 # =========================
 # Helpers
@@ -116,19 +143,15 @@ async def upload(file: UploadFile = File(...), embedding_model: str = Form("text
     file_path = os.path.join(save_dir, file.filename)
 
     try:
-        logging.info(f"Received upload request: {file.filename}, model={embedding_model}")
-        # Stream file to disk in 1MB chunks
+        logger.info(f"Received upload request: {file.filename}, model={embedding_model}")
         with open(file_path, "wb") as f:
             while chunk := await file.read(1024*1024):
                 f.write(chunk)
 
         print(f"[INFO] File saved to {file_path}")
-
-        # Process PDF page by page
         chunks = chunk_pdf_pages(file_path)
         print(f"[INFO] {len(chunks)} chunks generated from {file.filename}")
 
-        # Embed + store in Qdrant
         for idx, chunk in enumerate(chunks, 1):
             print(f"[INFO] Embedding + adding chunk {idx}/{len(chunks)}")
             embedding = client.embeddings.create(
@@ -148,14 +171,15 @@ async def upload(file: UploadFile = File(...), embedding_model: str = Form("text
             )
 
         print(f"[INFO] Completed processing {file.filename}")
-        logging.info(f"File {file.filename} processed with {len(chunks)} chunks with status: success using {embedding_model}")
+        logger.info(f"Generated {len(chunks)} chunks for {file.filename}")
+        for i, chunk in enumerate(chunks, 1):
+            logger.info(f"Chunk {i}: {chunk[:100]}...")
         return {"status": "success", "chunks": len(chunks)}
 
     except Exception as e:
         print(f"[ERROR] {e}")
         logging.error(f"Error uploading {file.filename}: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
-
 
 @app.post("/ask")
 async def ask(
@@ -164,7 +188,7 @@ async def ask(
     embedding_model: str = Form("text-embedding-3-small")
 ):
     try:
-        logging.info(f"Received query: {query} (model={answer_model})")
+        logger.info(f"Received query: {query} (model={answer_model})")
         # 1️⃣ Embed the query
         query_embedding = client.embeddings.create(
             model=embedding_model,
@@ -214,7 +238,7 @@ async def ask(
         )
 
         answer = completion.choices[0].message.content.strip()
-        logging.info(f"Generated answer for query '{query}': {answer[:100]}...")
+        logger.info(f"Generated answer for query '{query}': {answer[:100]}...")
 
         return {
             "answer": answer,
@@ -245,14 +269,45 @@ async def clear_collection():
         logging.error(f"Error clearing collection: {str(e)}")
         return {"error": str(e)}
     
-@app.get("/logs")
+LOG_DIR = os.path.join(os.getenv("LOCALAPPDATA", "."), "paiassistant", "logs")
+LOG_FILE = os.path.join(LOG_DIR, "pai_log.txt")
+
+@app.get("/logs", response_class=PlainTextResponse)
 async def get_logs():
     try:
-        with open("pai_backend.log", "r") as f:
-            return {"logs": f.read()}
+        if not os.path.exists(LOG_FILE):
+            return "No log file found."
+        with open(LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
+            return f.read()
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        logger.error(f"Error reading logs: {e}")
+        return PlainTextResponse(f"Error reading logs: {e}", status_code=500)
+    
+from fastapi import BackgroundTasks
+
+@app.post("/shutdown")
+async def shutdown(request: Request, background_tasks: BackgroundTasks):
+    """Gracefully shut down backend (including Qdrant)."""
+    def stopper():
+        logger.info("Received shutdown request, stopping backend...")
+        print("[INFO] Backend shutting down via /shutdown")
+        server = request.app.state.server
+        server.should_exit = True
+
+    background_tasks.add_task(stopper)
+    return {"status": "shutting down"}
+
+if getattr(sys, 'frozen', False):  # running in PyInstaller bundle
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+frontend_path = os.path.join(BASE_DIR, "frontend")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
+    config = uvicorn.Config(app, host="127.0.0.1", port=8000, reload=False)
+    server = uvicorn.Server(config)
+    app.state.server = server
+    server.run()

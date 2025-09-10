@@ -425,39 +425,25 @@ function logEvent(message) {
   console.log(entry);
 }
 
-// Download log as file
+// Download log to Desktop
 async function downloadLog() {
   try {
-    const res = await fetch(`${API_BASE}/logs`);
-    const data = await res.json();
-
-    const blob = new Blob([data.logs || "No logs found"], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "pai_log.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+    const result = await window.pywebview.api.save_log();
+    if (result.error) throw new Error(result.error);
+    alert("Log saved to: " + result.path);
   } catch (err) {
-    alert("Error fetching logs: " + err);
+    alert("Error downloading log: " + err.message);
   }
 }
 
 // Send log via email
 async function sendLogEmail() {
   try {
-    const res = await fetch(`${API_BASE}/logs`);
-    const data = await res.json();
-
-    const subject = encodeURIComponent("PAI Troubleshooting Log");
-    const body = encodeURIComponent(
-      "Hello Chris,\n\nHere is my troubleshooting log for PAI:\n\n" +
-      (data.logs || "No logs available") +
-      "\n\nThanks!"
-    );
-    window.location.href = `mailto:chris070411@gmail.com?subject=${subject}&body=${body}`;
+    const result = await window.pywebview.api.send_log_email();
+    if (result.error) throw new Error(result.error);
+    alert("Log email sent to: " + result.recipient);
   } catch (err) {
-    alert("Error preparing email: " + err);
+    alert("Error sending log email: " + err.message);
   }
 }
 </script>
