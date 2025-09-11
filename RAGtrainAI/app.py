@@ -13,6 +13,21 @@ from pathlib import Path
 import smtplib
 from email.message import EmailMessage
 
+def bundled_exe(name: str) -> Path:
+    """
+    Resolve path to a bundled exe. Works in dev and onedir builds.
+    """
+    if getattr(sys, "frozen", False):  # PyInstaller
+        base_path = Path(sys.executable).parent.parent  # move up to installDir
+    else:
+        base_path = Path(__file__).parent.parent  # move up to project root
+    path = base_path / name
+    if not path.exists():
+        raise FileNotFoundError(f"Bundled exe not found: {path}")
+    return path
+
+BACKEND_EXE = bundled_exe(Path("pai_backend") / "pai_backend.exe")
+
 backend_queue = queue.Queue()
 backend_ready = [False]
 backend_process = None
@@ -28,6 +43,8 @@ QDRANT_DIR = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "paiassistant" 
 QDRANT_EXE = QDRANT_DIR / "qdrant.exe"
 QDRANT_URL = "http://127.0.0.1:6333"
 QDRANT_DOWNLOAD = "https://github.com/qdrant/qdrant/releases/download/v1.15.4/qdrant-x86_64-pc-windows-msvc.zip"
+
+
 
 # =========================
 # Qdrant management
@@ -113,26 +130,32 @@ def kill_qdrant():
 # Backend management
 # =========================
 def start_backend():
-    """Start backend process only (non-blocking)."""
     global backend_process
-    backend_process = subprocess.Popen(
-        ["pai_backend.exe"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-        creationflags=subprocess.CREATE_NO_WINDOW
-    )
+
+    try:
+        backend_process = subprocess.Popen(
+            [str(BACKEND_EXE)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+    except Exception as e:
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
+            f.write(f"Failed to start backend: {e}\n")
+        raise
 
     # Stream logs in background
     def reader():
-        with open(LOG_FILE, "w", encoding="utf-8") as log_file:
+        with open(LOG_FILE, "a", encoding="utf-8") as log_file:
             for line in backend_process.stdout:
                 backend_queue.put(line)
                 log_file.write(line)
                 log_file.flush()
 
     threading.Thread(target=reader, daemon=True).start()
+
 
 def wait_for_backend(url="http://127.0.0.1:8000", timeout=30):
     """Poll until backend responds or timeout."""
@@ -216,18 +239,40 @@ def gui():
     api = API()
     window = webview.create_window("PAI Assistant", html=html, width=500, height=200, js_api=api)
 
-    # Start Qdrant in a separate thread so GUI is responsive
-    threading.Thread(target=lambda: start_qdrant(window), daemon=True).start()
-    threading.Thread(target=start_backend, daemon=True).start()
+    # Start Qdrant in a separate thread
+    def start_qdrant_with_status():
+        window.evaluate_js("document.getElementById('status').innerText = 'Starting Qdrant...'")
+        start_qdrant(window)
 
+    threading.Thread(target=start_qdrant_with_status, daemon=True).start()
+    
+    # Start backend in a separate thread
+    def start_backend_with_status():
+        window.evaluate_js("document.getElementById('status').innerText = 'Starting backend...'")
+        start_backend()
+    
+    threading.Thread(target=start_backend_with_status, daemon=True).start()
+
+    # Function to wait for backend and load correct page
     def update_loop():
+        window.evaluate_js("document.getElementById('status').innerText = 'Waiting for backend...'")
         if wait_for_backend():
             backend_ready[0] = True
-            window.load_url("http://127.0.0.1:8000/index.html")
+
+            # Check if OpenAI API key exists
+            if not os.getenv("OPENAI_API_KEY"):
+                window.evaluate_js("document.getElementById('status').innerText = 'OPENAI_API_KEY not found. Redirecting to workflow...'")
+                window.load_url("http://127.0.0.1:8000/workflow.html")
+            else:
+                window.evaluate_js("document.getElementById('status').innerText = 'Backend ready. Loading app...'")
+                window.load_url("http://127.0.0.1:8000/index.html")
+
             window.resize(1024, 768)
         else:
+            window.evaluate_js("document.getElementById('status').innerText = 'Backend failed to start.'")
             window.load_html("<h2>Backend failed to start.</h2>")
 
+    # Function to handle window closing
     def on_window_closed():
         try:
             requests.post("http://127.0.0.1:8000/shutdown", timeout=3)
@@ -241,6 +286,7 @@ def gui():
     window.events.closed += on_window_closed
     threading.Thread(target=update_loop, daemon=True).start()
     webview.start(debug=False)
+
 
 # =========================
 # Ensure cleanup

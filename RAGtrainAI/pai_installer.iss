@@ -8,11 +8,12 @@ OutputDir=output
 OutputBaseFilename=PAI_Installer
 Compression=lzma
 SolidCompression=yes
-UninstallDisplayIcon={app}\app.exe
+UninstallDisplayIcon={app}\pai_app\pai_app.exe
 
 [Files]
-; Compiled app + backend
-Source: "dist\*"; DestDir: "{app}"; Flags: recursesubdirs
+; App + backend (entire folders)
+Source: "dist\pai_app\*"; DestDir: "{app}\pai_app"; Flags: recursesubdirs
+Source: "dist\pai_backend\*"; DestDir: "{app}\pai_backend"; Flags: recursesubdirs
 Source: "pai.ico"; DestDir: "{app}"
 
 [Dirs]
@@ -22,8 +23,8 @@ Name: "{localappdata}\paiassistant\qdrant"
 
 [Icons]
 ; Desktop + Start Menu shortcuts
-Name: "{userdesktop}\PAI Personal Assistant"; Filename: "{app}\app.exe"; IconFilename: "{app}\pai.ico"
-Name: "{group}\PAI Personal Assistant"; Filename: "{app}\app.exe"; IconFilename: "{app}\pai.ico"
+Name: "{userdesktop}\PAI Personal Assistant"; Filename: "{app}\pai_app\pai_app.exe"; IconFilename: "{app}\pai.ico"
+Name: "{group}\PAI Personal Assistant"; Filename: "{app}\pai_app\pai_app.exe"; IconFilename: "{app}\pai.ico"
 
 [UninstallDelete]
 ; Clean up cache/logs on uninstall

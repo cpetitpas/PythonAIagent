@@ -11,8 +11,29 @@ import uuid
 import logging
 from logging.handlers import RotatingFileHandler
 import sys
+from pathlib import Path
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
+# =========================
+# Path Helper
+# =========================
+def resource_path(relative_path: str) -> Path:
+    """
+    Get absolute path to resource, works for dev, PyInstaller onefile, and onedir.
+    """
+if getattr(sys, 'frozen', False):
+# PyInstaller bundle
+    if hasattr(sys, "_MEIPASS"):
+        # onefile bundle
+        BASE_DIR = sys._MEIPASS
+    else:
+        # onedir bundle
+        BASE_DIR = os.path.dirname(sys.executable)
+else:
+    # Running as a normal script
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 # =========================
 # Setup
@@ -33,30 +54,43 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
 # Logging Setup
 # =========================
 if sys.platform == "win32":
-    base_dir = os.path.join(os.getenv("LOCALAPPDATA"), "paiassistant")
+    LOG_DIR = os.path.join(os.getenv("LOCALAPPDATA", BASE_DIR), "paiassistant", "logs")
 else:
-    base_dir = os.path.expanduser("~/.paiassistant")  # fallback for Linux/Mac
+    LOG_DIR = os.path.expanduser("~/.paiassistant/logs")
 
-log_dir = os.path.join(base_dir, "logs")
-os.makedirs(log_dir, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, "pai_log.txt")
 
-LOG_FILE = os.path.join(log_dir, "pai_log.txt")
+LOG_FILE = os.path.join(LOG_DIR, "pai_log.txt")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-handler.setFormatter(formatter)
 
-if not logger.handlers:
-    logger.addHandler(handler)
+# Log to file
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# Also log to console for early debugging
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+logger.info(f"BASE_DIR = {BASE_DIR}")
+logger.info(f"LOG_DIR = {LOG_DIR}")
 
 app = FastAPI()
 app.add_middleware(LimitUploadSizeMiddleware, max_upload_size=500 * 1024 * 1024)  # 500 MB
 
-openai_api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=openai_api_key)
+api_key = os.getenv("OPENAI_API_KEY")
+
+if api_key:
+    client = OpenAI(api_key=api_key)
+else:
+    client = None
+    print("OPENAI_API_KEY is missing. OpenAI features will be disabled.")
 
 # ✅ Qdrant server mode instead of embedded mode
 QDRANT_URL = "http://127.0.0.1:6333"
@@ -141,6 +175,9 @@ async def upload(file: UploadFile = File(...), embedding_model: str = Form("text
     save_dir = "temp"
     os.makedirs(save_dir, exist_ok=True)
     file_path = os.path.join(save_dir, file.filename)
+    if client is None:
+    # Optionally raise a RuntimeError if a critical operation is attempted
+        raise RuntimeError("OPENAI_API_KEY is missing. Cannot perform this action.")
 
     try:
         logger.info(f"Received upload request: {file.filename}, model={embedding_model}")
@@ -187,6 +224,9 @@ async def ask(
     answer_model: str = Form("gpt-4o-mini"),
     embedding_model: str = Form("text-embedding-3-small")
 ):
+    if client is None:
+    # Optionally raise a RuntimeError if a critical operation is attempted
+        raise RuntimeError("OPENAI_API_KEY is missing. Cannot perform this action.")
     try:
         logger.info(f"Received query: {query} (model={answer_model})")
         # 1️⃣ Embed the query
@@ -299,13 +339,10 @@ async def shutdown(request: Request, background_tasks: BackgroundTasks):
     background_tasks.add_task(stopper)
     return {"status": "shutting down"}
 
-if getattr(sys, 'frozen', False):  # running in PyInstaller bundle
-    BASE_DIR = sys._MEIPASS
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 frontend_path = os.path.join(BASE_DIR, "frontend")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+
+
 
 if __name__ == "__main__":
     import uvicorn
