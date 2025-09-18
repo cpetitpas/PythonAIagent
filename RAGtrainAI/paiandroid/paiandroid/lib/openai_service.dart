@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'logging_service.dart';
 
 class OpenAIService {
   final String? apiKey; // optional direct injection
@@ -19,6 +20,7 @@ class OpenAIService {
   /// Store API key in secure storage
   Future<void> setApiKey(String key) async {
     await _storage.write(key: 'OPENAI_API_KEY', value: key);
+    loggingService.log("OpenAI API key set.");
   }
 
   /// Create embeddings for a given text
@@ -40,10 +42,12 @@ class OpenAIService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      loggingService.log("Embedding request successful.");
       return (data["data"][0]["embedding"] as List)
           .map((e) => (e as num).toDouble())
           .toList();
     } else {
+      loggingService.error("Embedding request failed: ${response.body}");
       throw Exception("Embedding failed: ${response.body}");
     }
   }

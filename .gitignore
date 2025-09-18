@@ -5,3 +5,4 @@ RAGtrainAI/chroma_db/*
 RAGtrainAI/temp/*
 RAGtrainAI/dist/*
 RAGtrainAI/build/*
+RAGtrainAI/android/*

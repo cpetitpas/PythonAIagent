@@ -3,16 +3,49 @@ description: PAI for Android.
 environment:
   sdk: ^3.9.2-0
 
+flutter:
+  uses-material-design: true
+  assets:
+  - assets/images/robot.png
+
 dependencies:
+  flutter:
+    sdk: flutter
   sqflite: ^2.3.0
   path: ^1.9.0
   path_provider: ^2.1.0
   http: 1.5.0
-  flutter:
-    sdk: flutter
   google_fonts: ^6.1.0
   flutter_secure_storage: ^9.2.4
   file_picker: ^10.3.3
   uuid: ^4.5.1
   flutter_lints: ^6.0.0
   syncfusion_flutter_pdf: ^31.1.19
+  url_launcher: ^6.3.2
+  logger: ^2.0.2+1
+  share_plus: ^10.0.2
+  permission_handler: ^12.0.1
+
+flutter_launcher_icons:
+  image_path: "assets/images/robot.png"
+
+  android:
+    generate: true
+    adaptive_icon_background: "#FFFFFF"   # or any color you like
+    adaptive_icon_foreground: "assets/images/robot.png"
+
+  ios:
+    generate: true
+
+  # Disable other platforms
+  windows:
+    generate: false
+  macos:
+    generate: false
+  linux:
+    generate: false
+  web:
+    generate: false
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.1
