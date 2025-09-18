@@ -7,12 +7,14 @@ import 'pdf_service.dart';
 import 'openai_service.dart';
 import 'logging_service.dart';
 import 'ask_service.dart';
+import 'purchase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart' as perm;
 import 'package:share_plus/share_plus.dart';
-
+import 'dart:async';
 
 void main() {
   runApp(const PAIApp());
@@ -43,11 +45,16 @@ class WorkflowScreen extends StatefulWidget {
 
 class _WorkflowScreenState extends State<WorkflowScreen> {
   bool limitContext = true; // default: limit ON
-  int currentStep = 0; // Tracks current step in the steps list
+  int? currentStep = 0; // Tracks current step in the steps list
+  int trialDaysRemaining = 0;
+  Timer? _trialTimer; 
   String apiKey = "";
   final ScrollController chatScrollController = ScrollController();
   final TextEditingController queryController = TextEditingController();
   final List<Map<String, String>> chatHistory = [];
+  final InAppPurchase _iap = InAppPurchase.instance;
+  final Map<String, ProductDetails> _productDetails = {};
+  
   List<String> pdfPaths = [];
   List<String> previousQuestions = [];
   bool termsExpanded = false;
@@ -58,6 +65,7 @@ class _WorkflowScreenState extends State<WorkflowScreen> {
   late SQLiteService dbService;
   late PdfService pdfService;
   late AskService askService;
+  late StreamSubscription<List<PurchaseDetails>> _subscription;
   final FlutterSecureStorage storage = const FlutterSecureStorage();
 
   @override
@@ -68,7 +76,28 @@ class _WorkflowScreenState extends State<WorkflowScreen> {
     pdfService = PdfService(dbService, openAIService);
     dbService.init();
     askService = AskService(openAI: openAIService, dbService: dbService);
-
+    _checkAccess();
+    _subscription = _iap.purchaseStream.listen(
+      (purchases) async {
+        for (var purchase in purchases) {
+          if (purchase.status == PurchaseStatus.purchased ||
+              purchase.status == PurchaseStatus.restored) {
+            await _handlePurchase(purchase);
+          } else if (purchase.status == PurchaseStatus.error) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Purchase Error: ${purchase.error?.message}")),
+            );
+          }
+        }
+      },
+      onDone: () => _subscription.cancel(),
+      onError: (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Purchase Stream Error: $error")),
+        );
+      },
+    );
+    _loadProducts();
     _loadApiKey();
   }
 
@@ -82,6 +111,74 @@ class _WorkflowScreenState extends State<WorkflowScreen> {
       });
     }
   }
+
+  Future<void> _purchase(String productId) async {
+    if (!_productDetails.containsKey(productId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Product not loaded")),
+      );
+      return;
+    }
+
+  final purchaseParam = PurchaseParam(productDetails: _productDetails[productId]!);
+
+    if (productId == 'lifetime_plan_id') {
+      await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+    } else {
+      await _iap.buyConsumable(purchaseParam: purchaseParam, autoConsume: false);
+    }
+  }
+
+
+  Future<void> _loadProducts() async {
+  const ids = {'monthly_plan_id', 'yearly_plan_id', 'lifetime_plan_id'};
+  final response = await _iap.queryProductDetails(ids);
+    if (response.notFoundIDs.isNotEmpty) {
+      debugPrint("Products not found: ${response.notFoundIDs}");
+    }
+    for (var pd in response.productDetails) {
+      _productDetails[pd.id] = pd;
+    }
+  }
+
+  Future<void> _handlePurchase(PurchaseDetails purchase) async {
+    if (purchase.productID == 'lifetime_plan_id') {
+      await purchaseService.setLifetime(true);
+    } else if (purchase.productID == 'monthly_plan_id') {
+      await purchaseService.extendSubscription(days: 30);
+    } else if (purchase.productID == 'yearly_plan_id') {
+      await purchaseService.extendSubscription(days: 365);
+    }
+
+    if (purchase.pendingCompletePurchase) {
+      await _iap.completePurchase(purchase);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Purchase successful! App unlocked.")),
+    );
+
+    setState(() {
+      currentStep = 4; // unlock main app
+    });
+  }
+
+
+  Future<bool> _checkAccess() async {
+    // Ensure trial is started if none exists
+    final daysLeft = await purchaseService.remainingTrialDays();
+    if (daysLeft == 0) {
+      await purchaseService.startTrial();
+    }
+
+    // Now check entitlement (trial or purchase)
+    return await purchaseService.isEntitled();
+  }
+
+
+    
+final PurchaseService purchaseService = PurchaseService();
+
 
   void configureServices(String key) async {
     await openAIService.setApiKey(key);
@@ -102,13 +199,17 @@ class _WorkflowScreenState extends State<WorkflowScreen> {
 
   void nextStep() {
     setState(() {
-      currentStep++;
+      if (currentStep != null) {
+        currentStep = currentStep! + 1;
+      }
     });
   }
 
   void prevStep() {
     setState(() {
-      currentStep--;
+      if (currentStep != null) {
+        currentStep = currentStep! - 1;
+      }
     });
   }
 
@@ -235,10 +336,43 @@ Future<void> sendLogByEmail() async {
 
   @override
   void dispose() {
+    _trialTimer?.cancel();
     dbService.clear();
     queryController.dispose();
     super.dispose();
   }
+
+  Widget _buildUpgradeScreen(int daysLeft) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          daysLeft > 0
+              ? "Your free trial has $daysLeft day${daysLeft > 1 ? 's' : ''} remaining.\n\nUpgrade to continue using the app:"
+              : "Your free trial has ended.\n\nUpgrade to continue using the app:",
+          style: const TextStyle(fontSize: 16),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: () => _purchase("monthly_plan_id"),
+          child: const Text("\$2 / month"),
+        ),
+        ElevatedButton(
+          onPressed: () => _purchase("yearly_plan_id"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+          ),
+          child: const Text("\$20 / year  ⭐ Most Popular"),
+        ),
+        ElevatedButton(
+          onPressed: () => _purchase("lifetime_plan_id"),
+          child: const Text("\$49 Lifetime"),
+        ),
+      ],
+    );
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -682,13 +816,42 @@ Future<void> sendLogByEmail() async {
       ),
     ];
 
+    Widget content = FutureBuilder<bool>(
+      future: _checkAccess(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final entitled = snapshot.data ?? false;
+
+        if (!entitled) {
+          // Fetch trial days separately here
+          return FutureBuilder<int>(
+            future: purchaseService.remainingTrialDays(),
+            builder: (context, trialSnap) {
+              if (!trialSnap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return _buildUpgradeScreen(trialSnap.data ?? 0);
+            },
+          );
+        } else {
+          // Defensive: clamp step to safe range
+          final safeStep = (currentStep ?? 0).clamp(0, steps.length - 1);
+          return steps[safeStep];
+        }
+      },
+    );
+
+
     return Scaffold(
       backgroundColor: Colors.blue,
       appBar: AppBar(
         title: const Text("PAI Personal AI Assistant"),
         backgroundColor: Colors.blue.shade700,
         actions: [
-          if (currentStep > 0) ...[
+          if (currentStep != null && currentStep! > 0) ...[
             Tooltip(
               message: "Clear saved OpenAI API Key",
               child: IconButton(
@@ -767,50 +930,50 @@ Future<void> sendLogByEmail() async {
         ],
       ),
       body: Container(
-        margin: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (currentStep > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      "assets/images/robot.png",
-                      width: 40,
-                      height: 40,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      "PAI Personal AI Assistant",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [BoxShadow(blurRadius: 6, color: Colors.black26)],
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          if (currentStep != null && currentStep! > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Image.asset(
+                    "assets/images/robot.png",
+                    width: 40,
+                    height: 40,
                   ),
-                  child: steps[currentStep],
-                ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "PAI Personal AI Assistant",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          Expanded(
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 600),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [BoxShadow(blurRadius: 6, color: Colors.black26)],
+                ),
+                child: content,
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildStepCard({
     required int step,

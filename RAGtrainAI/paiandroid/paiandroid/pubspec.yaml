@@ -25,6 +25,7 @@ dependencies:
   logger: ^2.0.2+1
   share_plus: ^10.0.2
   permission_handler: ^12.0.1
+  in_app_purchase: ^3.2.3
 
 flutter_launcher_icons:
   image_path: "assets/images/robot.png"
