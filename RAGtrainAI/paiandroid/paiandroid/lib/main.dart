@@ -452,7 +452,7 @@ Future<void> sendLogByEmail() async {
         ),
       _buildStepCard(
         step: 1,
-        title: "Welcome to PAI Personal AI Assistant",
+        title: "Welcome to PAI Assistant - Document Clarity AI",
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -848,7 +848,7 @@ Future<void> sendLogByEmail() async {
     return Scaffold(
       backgroundColor: Colors.blue,
       appBar: AppBar(
-        title: const Text("PAI Personal AI Assistant"),
+        title: const Text("PAI Assistant - Document Clarity AI"),
         backgroundColor: Colors.blue.shade700,
         actions: [
           if (currentStep != null && currentStep! > 0) ...[
@@ -906,7 +906,7 @@ Future<void> sendLogByEmail() async {
                 final logFile = await loggingService.saveToFile();
                 await Share.shareXFiles(
                   [XFile(logFile.path)],
-                  text: "Here are my logs for troubleshooting.\n\nPlease send to paipersonalaiassistant@gmail.com",
+                  text: "Here are my logs for troubleshooting.\n\nPlease send to admin@paidocassistant.com",
                   subject: "PAI App Logs",
                 );
 
@@ -945,7 +945,7 @@ Future<void> sendLogByEmail() async {
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    "PAI Personal AI Assistant",
+                    "PAI Assistant - Document Clarity AI",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
