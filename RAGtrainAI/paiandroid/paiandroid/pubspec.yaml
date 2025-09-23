@@ -1,5 +1,5 @@
-name: paiandroid
-description: PAI for Android.
+name: paidocassistant
+description: PAI Assistant - Document Clarity AI.
 environment:
   sdk: ^3.9.2-0
 
@@ -7,6 +7,8 @@ flutter:
   uses-material-design: true
   assets:
   - assets/images/robot.png
+
+version: 1.0.0+1
 
 dependencies:
   flutter:

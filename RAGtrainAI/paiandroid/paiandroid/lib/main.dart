@@ -270,7 +270,7 @@ Future<void> sendLogByEmail() async {
 
   final Uri emailUri = Uri(
     scheme: 'mailto',
-    path: 'support@example.com', // <-- replace with your support email
+    path: 'admin@paidocassistant.com', // <-- replace with your support email
     queryParameters: {
       'subject': 'PAI App Logs',
       'body': 'Attached are my logs for troubleshooting.',
@@ -458,7 +458,7 @@ Future<void> sendLogByEmail() async {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
-                "Welcome to PAI your Personal AI Assistant!\n\n"
+                "Welcome to PAI your Personal AI Document Assistant!\n\n"
                 "With this application you can upload PDF documents and ask questions about their content.\n\n"
                 "This is very helpful with documents which come from Social Security, Medicare, Insurance, Legal, Medical, wherein the language is complex and difficult to understand.\n\n"
                 "It is also helpful when you have many documents and one seems to conflict with another.",
@@ -481,47 +481,54 @@ Future<void> sendLogByEmail() async {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
-                "This application leverages the power of OpenAI's GPT models to provide accurate and context-aware answers based on your documents.\n\n",
+                "This application leverages the power of OpenAI's GPT models to provide accurate and context-aware answers based on your documents.\n\n"
+                "You will need an OpenAI API key to use this application.\n\n"
+                "You can sign up or log in to your OpenAI account, then create a secret key and copy it to your clipboard.\n\n"
+                "⚠️ Note: You will have only one opportunity to copy the key, so save it somewhere safe.\n\n"
+                "The key will be stored securely on your device and never shared.\n\n"
+                "Once set, this step will be skipped on future app launches.\n\n"
+                "If you need to change or remove the key, you can do so later from the top-right key icon.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),
-              RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 16, color: Colors.black),
-                  children: [
-                    const TextSpan(
-                        text:
-                            "You will need an OpenAI API key to use this application. You can get one from "),
-                    WidgetSpan(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final url = Uri.parse(
-                              "https://platform.openai.com/account/api-keys");
-                          if (await canLaunchUrl(url)) {
-                            await launchUrl(url,
-                                mode: LaunchMode.externalApplication);
-                          }
-                        },
-                        child: const Text(
-                          "https://platform.openai.com/account/api-keys",
-                          style: TextStyle(
-                              color: Colors.blue,
-                              decoration: TextDecoration.underline),
-                        ),
-                      ),
-                    ),
-                    const TextSpan(
-                        text:
-                            ". You will need to sign up for an account if you do not already have one. Then create a secret key and copy it to your clipboard."
-                            "\n\nNote that you will have only one opportunity to copy the key, so be sure to save it somewhere safe."
-                            "\n\nThe key will be stored securely on your device and never shared with anyone."
-                            "\n\nOnce the key is set, the OPENAI_API_KEY screen will be skipped on future app launches."
-                            "\n\nIf you need to change or remove the key, you can do so by clicking the key icon in the top right of the app."),
-                  ],
+              const SizedBox(height: 16),
+
+              // Button to open OpenAI API key page
+              ElevatedButton.icon(
+                icon: const Icon(Icons.open_in_browser),
+                label: const Text("Open OpenAI API Key Page"),
+                onPressed: () async {
+                  final Uri url = Uri.parse("https://platform.openai.com/account/api-keys");
+
+                  if (await canLaunchUrl(url)) {
+                    try {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      // fallback to default mode
+                      await launchUrl(url, mode: LaunchMode.platformDefault);
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Cannot launch URL")),
+                    );
+                  }
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Plain selectable URL for copy/paste
+              SelectableText(
+                "https://platform.openai.com/account/api-keys",
+                style: const TextStyle(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                  fontSize: 14,
                 ),
               ),
+
               const SizedBox(height: 20),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
